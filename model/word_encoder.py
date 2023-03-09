@@ -13,12 +13,13 @@ class Word_Encoder(nn.Module):
         self.word_padding_idx = self.word_config['padding_idx']
         self.word_dropout_prob = self.word_config['dropout']
         self.word_embedding_path = self.word_config['word_embedding_path']
+        self.version = self.word_config['version']
         
         self.word_embedding = nn.Embedding(
             self.word_count, self.word_dim, padding_idx=self.word_padding_idx)
         if self.word_embedding_path:
             print(self.word_embedding_path)
-            W = torch.Tensor(load_embeddings(self.word_embedding_path))
+            W = torch.Tensor(load_embeddings(self.word_embedding_path, self.version))
             assert self.word_count == W.shape[0]
             assert self.word_dim == W.shape[1]
             self.word_embedding.weight.data = W.clone()

@@ -5,7 +5,7 @@ import gensim
 import torch
 import os
 from torch.utils.data import Dataset
-from constant import DATA_DIR, MIMIC_2_DIR, MIMIC_3_DIR
+from constant import DATA_DIR, MIMIC_2_DIR, MIMIC_3_DIR, MIMIC_4_ICD9_DIR, MIMIC_4_ICD10_DIR
 import sys
 import pandas as pd
 import numpy as np
@@ -42,19 +42,25 @@ class MimicFullDataset(Dataset):
 
         if version == 'mimic2':
             raise NotImplementedError
-        if version in ['mimic3', 'mimic3-50']:
+        if version in ['mimic3', 'mimic3-50',]:
             self.path = os.path.join(MIMIC_3_DIR, f"{version}_{mode}.json")
-
+            
         if version in ['mimic3']:
             self.train_path = os.path.join(MIMIC_3_DIR, "train_full.csv")
         if version in ['mimic3-50']:
             self.train_path = os.path.join(MIMIC_3_DIR, "train_50.csv")
+        if version == 'mimic4-icd9':
+            self.train_path = os.path.join(MIMIC_4_ICD9_DIR, "train_full.csv")
+            self.path = os.path.join(MIMIC_4_ICD9_DIR, f"{version}_{mode}.json")
+        if version == 'mimic4-icd10':
+            self.train_path = os.path.join(MIMIC_4_ICD10_DIR, "train_full.csv")
+            self.path = os.path.join(MIMIC_4_ICD10_DIR, f"{version}_{mode}.json")
 
         with open(self.path, "r") as f:
             self.df = ujson.load(f)
 
         self.vocab_path = vocab_path
-        self.word2id, self.id2word = load_vocab(self.vocab_path)
+        self.word2id, self.id2word = load_vocab(self.vocab_path, version)
 
         self.truncate_length = truncate_length
 
@@ -79,7 +85,7 @@ class MimicFullDataset(Dataset):
         self.term_count = term_count
         self.sort_method = sort_method
         if self.mode == "train":
-            self.prepare_label_feature(self.label_truncate_length)
+            self.prepare_label_feature(self.label_truncate_length, version=version)
 
     def check(self, word):
         for ch in word:
@@ -164,26 +170,29 @@ class MimicFullDataset(Dataset):
         processed = self.process(text, label)
         return processed
     
-    def extract_label_desc(self, ind2c):
+    def extract_label_desc(self, ind2c, version):
         if not hasattr(self, 'desc_dict'):
-            self.desc_dict = load_code_descriptions()
-            
+            self.desc_dict = load_code_descriptions(version=version)
         desc_list = []
+        ctr = 0
         for i in ind2c:
             code = ind2c[i]
             if not code in self.desc_dict:
                 print(f'Not find desc of {code}')
+                ctr += 1
             desc = self.desc_dict.get(code, code)
             desc_list.append(desc)
+        print(ctr)
         return desc_list
     
-    def process_label(self, ind2c, truncate_length, term_count=1, method='max'):
-        desc_list = self.extract_label_desc(ind2c)
+    def process_label(self, ind2c, truncate_length, term_count=1, method='max', version='mimic3'):
+        desc_list = self.extract_label_desc(ind2c, version)
         if term_count == 1:
             c_desc_list = desc_list
         else:
             c_desc_list = []
-            with open(f'./embedding/icd_mimic3_{method}_sort.json', 'r') as f:
+            version = version.replace('-', '_')
+            with open(f'./embedding/{version}/{version}_{method}_sort.json', 'r') as f:
                 icd_syn = ujson.load(f)
             for i in ind2c:
                 code = ind2c[i]
@@ -211,7 +220,7 @@ class MimicFullDataset(Dataset):
             
         return c_input_word, c_word_mask, c_word_sent
     
-    def prepare_label_feature(self, truncate_length):
+    def prepare_label_feature(self, truncate_length, version='mimic3'):
         print('Prepare Label Feature')
         if hasattr(self, 'term_count'):
             term_count = self.term_count
@@ -223,7 +232,7 @@ class MimicFullDataset(Dataset):
             sort_method = 'max'
         c_input_word, c_word_mask, c_word_sent = self.process_label(self.ind2c, truncate_length,
                                                                     term_count=term_count,
-                                                                    method=sort_method)
+                                                                    method=sort_method, version=version)
         # mc_input_word, mc_word_mask, mc_word_sent = self.process_label(self.ind2mc, truncate_length)
         self.c_input_word = torch.LongTensor(c_input_word)
         self.c_word_mask = torch.LongTensor(c_word_mask)
@@ -256,7 +265,7 @@ def my_collate_fn(batch):
     return output
 
 
-def load_vocab(path):
+def load_vocab(path, version='mimic3'):
     try:
         with open(path, "r", encoding="utf-8") as f:
             lines = f.readlines()
@@ -272,10 +281,10 @@ def load_vocab(path):
 
     # hard code to trim word embedding size
     try:
-        with open('./embedding/word_count_dict.json', 'r') as f:
+        with open(f"./embedding/{version.replace('-','_')}/word_count_dict.json", 'r') as f:
             word_count_dict = ujson.load(f)
     except BaseException:
-        with open('../embedding/word_count_dict.json', 'r') as f:
+        with open(f"../embedding/{version.replace('-','_')}/word_count_dict.json", 'r') as f:
             word_count_dict = ujson.load(f)
     words = [w for w in words if w in word_count_dict]
 
@@ -344,6 +353,7 @@ def reformat(code, is_diag):
 
 def load_code_descriptions(version='mimic3'):
     # load description lookup from the appropriate data files
+    
     desc_dict = defaultdict(str)
     if version == 'mimic2':
         with open('%s/MIMIC_ICD9_mapping' % MIMIC_2_DIR, 'r') as f:
@@ -352,7 +362,7 @@ def load_code_descriptions(version='mimic3'):
             next(r)
             for row in r:
                 desc_dict[str(row[1])] = str(row[2])
-    else:
+    elif version in ['mimic3', 'mimic4-icd9']:
         with open("%s/D_ICD_DIAGNOSES.csv" % (DATA_DIR), 'r') as descfile:
             r = csv.reader(descfile)
             # header
@@ -376,10 +386,22 @@ def load_code_descriptions(version='mimic3'):
                 code = row[0]
                 if code not in desc_dict.keys():
                     desc_dict[code] = ' '.join(row[1:])
+    elif version=='mimic4-icd10':
+        with open(f'{DATA_DIR}/icd10cm_order_2023.txt', 'r') as f:
+            all_codes_flat = f.read().splitlines()
+        with open(f'{DATA_DIR}/icd10pcs_order_2023.txt', 'r') as f:
+            all_codes_flat.extend(f.read().splitlines())
+        for c in all_codes_flat:
+            code = c[6:14].strip()
+            # print(code)
+            desc = c[77:]
+            desc_dict[code] = desc
+    print(list(desc_dict.items())[:15])
+    print(version)
     return desc_dict
 
 
-def load_embeddings(embed_file):
+def load_embeddings(embed_file, version):
     W = []
     word_list = []
     try:
@@ -401,9 +423,9 @@ def load_embeddings(embed_file):
         words = list(model.wv.vocab)
 
         original_word_count = len(words)
-
+        version = version.replace('-', '_')
         # hard code to trim word embedding size
-        with open('./embedding/word_count_dict.json', 'r') as f:
+        with open(f'./embedding/{version}/word_count_dict.json', 'r') as f:
             word_count_dict = ujson.load(f)
         words = [w for w in words if w in word_count_dict]
 

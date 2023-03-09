@@ -2,10 +2,11 @@ import os
 import pandas as pd
 import json
 import unicodedata
+from sklearn.metrics import v_measure_score
 from tqdm import trange
 import sys
 sys.path.append("..")
-from constant import MIMIC_2_DIR, MIMIC_3_DIR, UMLS_PATH
+from constant import MIMIC_2_DIR, MIMIC_3_DIR, MIMIC_4_ICD10_DIR, MIMIC_4_ICD9_DIR, UMLS_PATH
 from load_umls import UMLS
 from data_util import load_code_descriptions, load_full_codes
 
@@ -23,6 +24,8 @@ def load_icd_dict(version):
         cache_path = "icd_mimic3.json"
     if version in ["mimic3-50"]:
         cache_path = "icd_mimic3-50.json"
+    if version in ['mimic4-icd9', 'mimic4-icd10']:
+        cache_path = f"{version.replace('-', '_')}.json"
 
     if os.path.exists(cache_path):
         with open(cache_path) as f:
@@ -35,14 +38,18 @@ def load_icd_dict(version):
         train_path = os.path.join(MIMIC_3_DIR, "train_full.csv")
     if version == 'mimic3-50':
         train_path = os.path.join(MIMIC_3_DIR, "train_50.csv")
+    if version == 'mimic4-icd9':
+        train_path = os.path.join(MIMIC_4_ICD9_DIR, "train_full.csv")
+    if version == 'mimic4-icd10':
+        train_path = os.path.join(MIMIC_4_ICD10_DIR, "train_full.csv")
     ind2c, _ = load_full_codes(train_path, version=version)
 
     if version == 'mimic2':
         desc_dict = load_code_descriptions(version)
     else:
-        desc_dict = load_code_descriptions('mimic3')
+        desc_dict = load_code_descriptions(version)
 
-    umls = UMLS(UMLS_PATH, only_load_dict=True)
+    umls = UMLS(UMLS_PATH, only_load_dict=True, version=version)
 
     icd_dict = {}
     desc_count = 0
@@ -77,4 +84,4 @@ def load_icd_dict(version):
 
 
 if __name__ == "__main__":
-    load_icd_dict('mimic3')
+    load_icd_dict('mimic4-icd10')

@@ -14,10 +14,11 @@ def byLineReader(filename):
 
 
 class UMLS(object):
-    def __init__(self, umls_path, source_range=None, lang_range=['ENG'], only_load_dict=False):
+    def __init__(self, umls_path, source_range=None, lang_range=['ENG'], only_load_dict=False, version='ICD9'):
         self.umls_path = umls_path
         self.source_range = source_range
         self.lang_range = lang_range
+        self.version = version
         self.detect_type()
         self.load()
         # if not only_load_dict:
@@ -48,9 +49,11 @@ class UMLS(object):
             lui = l[3]
             source = l[11]
             code = l[13]
+            if self.version.endswith('icd10'):
+                code=code.replace('.','')
             string = l[14]
-
-            if source == "ICD9CM":
+            keys = ["ICD9CM"] if self.version.endswith('icd9') else ['ICD10PCS', 'ICD10CM']
+            if source in keys:
                 self.code2cui[code] = cui
 
             if (self.source_range is None or source in self.source_range) and (self.lang_range is None or lang in self.lang_range):

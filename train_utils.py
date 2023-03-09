@@ -94,6 +94,7 @@ def create_word_config(args, train_dataset):
     except BaseException:
         padding_idx = None
     word_config['padding_idx'] = padding_idx
+    word_config['version'] = args.version
     word_config['count'] = len(train_dataset.word2id)
     word_config['dropout'] = args.word_dp
     word_config['word_embedding_path'] = args.word_embedding_path

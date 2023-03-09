@@ -6,7 +6,7 @@ def generate_parser():
 
     # input related
     parser.add_argument("--version", type=str, default="mimic3-50",
-                        choices=["mimic2", "mimic3", "mimic3-50"], help="Dataset version.")
+                        choices=["mimic2", "mimic3", "mimic3-50", "mimic4-icd9", "mimic4-icd10"], help="Dataset version.")
     parser.add_argument("--label_truncate_length", type=int, default=30)
     
     parser.add_argument("--n_gpu", type=int, default=1)

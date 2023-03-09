@@ -1,7 +1,7 @@
 import json
 
 
-with open('icd_mimic3_random_sort.json', 'r') as f:
+with open('icd_mimic3_random_sort_bak.json', 'r') as f:
     df = json.load(f)
     
 count = []
