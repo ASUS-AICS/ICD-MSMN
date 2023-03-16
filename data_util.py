@@ -55,6 +55,12 @@ class MimicFullDataset(Dataset):
         if version == 'mimic4-icd10':
             self.train_path = os.path.join(MIMIC_4_ICD10_DIR, "train_full.csv")
             self.path = os.path.join(MIMIC_4_ICD10_DIR, f"{version}_{mode}.json")
+        if version == 'mimic4-icd9-50':
+            self.train_path = os.path.join(MIMIC_4_ICD9_DIR, "train_50.csv")
+            self.path = os.path.join(MIMIC_4_ICD9_DIR, f"{version}_{mode}.json")
+        if version == 'mimic4-icd10-50':
+            self.train_path = os.path.join(MIMIC_4_ICD10_DIR, "train_50.csv")
+            self.path = os.path.join(MIMIC_4_ICD10_DIR, f"{version}_{mode}.json")
 
         with open(self.path, "r") as f:
             self.df = ujson.load(f)
@@ -192,6 +198,8 @@ class MimicFullDataset(Dataset):
         else:
             c_desc_list = []
             version = version.replace('-', '_')
+            if version.endswith('_50'):
+                version = version.replace("_50",'')
             with open(f'./embedding/{version}/{version}_{method}_sort.json', 'r') as f:
                 icd_syn = ujson.load(f)
             for i in ind2c:
@@ -281,10 +289,10 @@ def load_vocab(path, version='mimic3'):
 
     # hard code to trim word embedding size
     try:
-        with open(f"./embedding/{version.replace('-','_')}/word_count_dict.json", 'r') as f:
+        with open(f"./embedding/{version.replace('-','_').replace('_50','')}/word_count_dict.json", 'r') as f:
             word_count_dict = ujson.load(f)
     except BaseException:
-        with open(f"../embedding/{version.replace('-','_')}/word_count_dict.json", 'r') as f:
+        with open(f"../embedding/{version.replace('-','_').replace('_50','')}/word_count_dict.json", 'r') as f:
             word_count_dict = ujson.load(f)
     words = [w for w in words if w in word_count_dict]
 
@@ -362,7 +370,7 @@ def load_code_descriptions(version='mimic3'):
             next(r)
             for row in r:
                 desc_dict[str(row[1])] = str(row[2])
-    elif version in ['mimic3', 'mimic4-icd9']:
+    elif version in ['mimic3', 'mimic4-icd9', 'mimic4-icd9-50']:
         with open("%s/D_ICD_DIAGNOSES.csv" % (DATA_DIR), 'r') as descfile:
             r = csv.reader(descfile)
             # header
@@ -386,7 +394,7 @@ def load_code_descriptions(version='mimic3'):
                 code = row[0]
                 if code not in desc_dict.keys():
                     desc_dict[code] = ' '.join(row[1:])
-    elif version=='mimic4-icd10':
+    elif version in ['mimic4-icd10', 'mimic4-icd10-50']:
         with open(f'{DATA_DIR}/icd10cm_order_2023.txt', 'r') as f:
             all_codes_flat = f.read().splitlines()
         with open(f'{DATA_DIR}/icd10pcs_order_2023.txt', 'r') as f:
@@ -396,6 +404,8 @@ def load_code_descriptions(version='mimic3'):
             # print(code)
             desc = c[77:]
             desc_dict[code] = desc
+    else:
+        raise NotImplementedError(f"Unknown Version `{version}`!")
     print(list(desc_dict.items())[:15])
     print(version)
     return desc_dict
@@ -424,6 +434,8 @@ def load_embeddings(embed_file, version):
 
         original_word_count = len(words)
         version = version.replace('-', '_')
+        if version.endswith('_50'):
+            version = version.replace("_50",'')
         # hard code to trim word embedding size
         with open(f'./embedding/{version}/word_count_dict.json', 'r') as f:
             word_count_dict = ujson.load(f)
