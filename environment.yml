@@ -1,0 +1,4 @@
+name: msmn
+channels:
+  - defaults
+prefix: /mnt/iusers01/gb01/z07959vs/.conda/envs/msmn

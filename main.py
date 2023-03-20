@@ -67,7 +67,7 @@ def run(args):
     #model.mc_word_sent = train_dataset.mc_word_sent.to(accelerator.device)
     if args.continue_from:
         model = torch.load(os.path.join(output_path, f"epoch{args.continue_from}.pth"))
-        
+        print("LOADING MODEL")
     model, optimizer, train_dataloader = \
         accelerator.prepare(model, optimizer, train_dataloader)
 
@@ -86,8 +86,10 @@ def run(args):
         print_metrics(dev_metric, 'DEBUG')
 
     for epoch_idx in range(1, args.train_epoch + 1):
-        if epoch_idx <= args.continue_from:
+        if epoch_idx <= args.continue_from and args.continue_from > 0:
+            print("skipping epoch", epoch_idx)
             continue
+            
         epoch_dev_metric, epoch_test_metric, steps = train_one_epoch(model, steps, train_dataloader, dev_dataloader, test_dataloader, optimizer, scheduler_step, args, accelerator)
         accelerator.wait_for_everyone()
         if accelerator.is_local_main_process:
