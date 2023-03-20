@@ -68,6 +68,7 @@ def run(args):
     if args.continue_from:
         model = torch.load(os.path.join(output_path, f"epoch{args.continue_from}.pth"))
         print("LOADING MODEL")
+
     model, optimizer, train_dataloader = \
         accelerator.prepare(model, optimizer, train_dataloader)
 
@@ -88,8 +89,10 @@ def run(args):
     for epoch_idx in range(1, args.train_epoch + 1):
         if epoch_idx <= args.continue_from and args.continue_from > 0:
             print("skipping epoch", epoch_idx)
+            epoch_dev_metric, epoch_test_metric, steps = train_one_epoch(model, steps, train_dataloader, dev_dataloader, test_dataloader, optimizer, scheduler_step, args, accelerator, skip=True)
             continue
             
+
         epoch_dev_metric, epoch_test_metric, steps = train_one_epoch(model, steps, train_dataloader, dev_dataloader, test_dataloader, optimizer, scheduler_step, args, accelerator)
         accelerator.wait_for_everyone()
         if accelerator.is_local_main_process:
@@ -133,7 +136,7 @@ def run(args):
         os.system(f'cp {best_path} {new_path}')
 
     
-def train_one_epoch(model, steps, train_dataloader, dev_dataloader, test_dataloader, optimizer, scheduler, args, accelerator=None):
+def train_one_epoch(model, steps, train_dataloader, dev_dataloader, test_dataloader, optimizer, scheduler, args, accelerator=None, skip=False):
     model.train()
     epoch_loss = 0.
     # epoch_mc_loss = 0.
@@ -148,34 +151,37 @@ def train_one_epoch(model, steps, train_dataloader, dev_dataloader, test_dataloa
         
     epoch_iterator = tqdm(train_dataloader, desc="Iteration", ascii=True, disable=not accelerator.is_local_main_process)
     for batch_idx, batch in enumerate(epoch_iterator):
-        batch_gpu = tuple([x.to(accelerator.device) for x in batch])
-        #if args.rdrop_alpha > 0.0:
-        #    ori_loss = model.forward_rdrop(batch_gpu)
-        #else:
-        ori_loss = model(batch_gpu, rdrop=args.rdrop_alpha > 0.0)
-        if isinstance(ori_loss, dict):
-            loss = ori_loss['loss']
-        else:
-            loss = ori_loss
-            
-        batch_loss = float(loss.item())
-        epoch_loss += batch_loss
         
-        # batch_mc_loss = float(ori_loss['mc_loss'].item())
-        # epoch_mc_loss += batch_mc_loss
-        batch_c_loss = float(ori_loss['c_loss'].item())
-        epoch_c_loss += batch_c_loss
-        
-        if args.rdrop_alpha > 0.0:
-            batch_kl_loss = float(ori_loss['kl_loss'].item())
-            epoch_kl_loss += batch_kl_loss
+        if not skip: 
+            batch_gpu = tuple([x.to(accelerator.device) for x in batch])
+            #if args.rdrop_alpha > 0.0:
+            #    ori_loss = model.forward_rdrop(batch_gpu)
+            #else:
+            ori_loss = model(batch_gpu, rdrop=args.rdrop_alpha > 0.0)
+            if isinstance(ori_loss, dict):
+                loss = ori_loss['loss']
+            else:
+                loss = ori_loss
                 
-        if args.gradient_accumulation_steps > 1:
-            loss = loss / args.gradient_accumulation_steps
-
-        # loss.backward()
-        accelerator.backward(loss)
+            batch_loss = float(loss.item())
+            epoch_loss += batch_loss
             
+            # batch_mc_loss = float(ori_loss['mc_loss'].item())
+            # epoch_mc_loss += batch_mc_loss
+            batch_c_loss = float(ori_loss['c_loss'].item())
+            epoch_c_loss += batch_c_loss
+            
+            if args.rdrop_alpha > 0.0:
+                batch_kl_loss = float(ori_loss['kl_loss'].item())
+                epoch_kl_loss += batch_kl_loss
+                    
+            if args.gradient_accumulation_steps > 1:
+                loss = loss / args.gradient_accumulation_steps
+
+            # loss.backward()
+            accelerator.backward(loss)
+        else:
+            loss = 0
         # if args.adv_training:
         #     adv.adversarial_training(args, inputs, optimizer)
 
@@ -205,7 +211,7 @@ def train_one_epoch(model, steps, train_dataloader, dev_dataloader, test_dataloa
 
     tqdm_bar = False
     accelerator.wait_for_everyone()
-    if accelerator.is_local_main_process:
+    if accelerator.is_local_main_process and not skip:
         dev_metric, _, threshold = eval_func(model, dev_dataloader, accelerator.device, None, tqdm_bar, args)
         print('Threshold find on dev:', threshold)
         test_metric, _, _ = eval_func(model, test_dataloader, accelerator.device, threshold, tqdm_bar, args)
