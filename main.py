@@ -182,6 +182,9 @@ def train_one_epoch(model, steps, train_dataloader, dev_dataloader, test_dataloa
             accelerator.backward(loss)
         else:
             loss = 0
+            batch_loss = 0
+            batch_kl_loss = 0
+            batch_c_loss = 0
         # if args.adv_training:
         #     adv.adversarial_training(args, inputs, optimizer)
 
