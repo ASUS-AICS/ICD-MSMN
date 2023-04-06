@@ -6,7 +6,7 @@ from sklearn.metrics import v_measure_score
 from tqdm import trange
 import sys
 sys.path.append("..")
-from constant import MIMIC_2_DIR, MIMIC_3_DIR, MIMIC_4_ICD10_DIR, MIMIC_4_ICD9_DIR, UMLS_PATH
+from constant import CC_DIR, MIMIC_2_DIR, MIMIC_3_DIR, MIMIC_4_ICD10_DIR, MIMIC_4_ICD9_DIR, UMLS_PATH
 from load_umls import UMLS
 from data_util import load_code_descriptions, load_full_codes
 
@@ -24,9 +24,8 @@ def load_icd_dict(version):
         cache_path = "icd_mimic3.json"
     if version in ["mimic3-50"]:
         cache_path = "icd_mimic3-50.json"
-    if version in ['mimic4-icd9', 'mimic4-icd10']:
+    if version in ['mimic4-icd9', 'mimic4-icd10', 'cc']:
         cache_path = f"{version.replace('-', '_')}.json"
-
     if os.path.exists(cache_path):
         with open(cache_path) as f:
             icd_dict = json.load(f)
@@ -42,6 +41,8 @@ def load_icd_dict(version):
         train_path = os.path.join(MIMIC_4_ICD9_DIR, "train_full.csv")
     if version == 'mimic4-icd10':
         train_path = os.path.join(MIMIC_4_ICD10_DIR, "train_full.csv")
+    if version == 'cc':
+        train_path = os.path.join(CC_DIR, "train_full.csv")
     ind2c, _ = load_full_codes(train_path, version=version)
 
     if version == 'mimic2':
@@ -84,4 +85,4 @@ def load_icd_dict(version):
 
 
 if __name__ == "__main__":
-    load_icd_dict('mimic4-icd10')
+    load_icd_dict('cc')

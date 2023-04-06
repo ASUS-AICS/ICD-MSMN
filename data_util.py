@@ -5,7 +5,7 @@ import gensim
 import torch
 import os
 from torch.utils.data import Dataset
-from constant import DATA_DIR, MIMIC_2_DIR, MIMIC_3_DIR, MIMIC_4_ICD9_DIR, MIMIC_4_ICD10_DIR
+from constant import DATA_DIR, MIMIC_2_DIR, MIMIC_3_DIR, MIMIC_4_ICD9_DIR, MIMIC_4_ICD10_DIR, CC_DIR
 import sys
 import pandas as pd
 import numpy as np
@@ -61,6 +61,10 @@ class MimicFullDataset(Dataset):
         if version == 'mimic4-icd10-50':
             self.train_path = os.path.join(MIMIC_4_ICD10_DIR, "train_50.csv")
             self.path = os.path.join(MIMIC_4_ICD10_DIR, f"{version}_{mode}.json")
+
+        if version == 'cc':
+            self.train_path = os.path.join(CC_DIR, "train_full.csv")
+            self.path = os.path.join(CC_DIR, f"{version}_{mode}.json")
 
         with open(self.path, "r") as f:
             self.df = ujson.load(f)
@@ -331,9 +335,12 @@ def load_full_codes(train_path, version='mimic3'):
         for split in ['train', 'dev', 'test']:
             with open(train_path.replace('train', split), 'r') as f:
                 lr = csv.reader(f)
-                next(lr)
+                row = next(lr)
+                code_column = next((i for i, l in enumerate(row) if l.lower() in ['label', 'labels']), 0)
+                if code_column <= 0:
+                    code_column = 3
                 for row in lr:
-                    for code in row[3].split(';'):
+                    for code in row[code_column].split(';'):
                         codes.add(code)
         codes = set([c for c in codes if c != ''])
         ind2c = defaultdict(str, {i: c for i, c in enumerate(sorted(codes))})
@@ -394,7 +401,7 @@ def load_code_descriptions(version='mimic3'):
                 code = row[0]
                 if code not in desc_dict.keys():
                     desc_dict[code] = ' '.join(row[1:])
-    elif version in ['mimic4-icd10', 'mimic4-icd10-50']:
+    elif version in ['mimic4-icd10', 'mimic4-icd10-50', 'cc']:
         with open(f'{DATA_DIR}/icd10cm_order_2023.txt', 'r') as f:
             all_codes_flat = f.read().splitlines()
         with open(f'{DATA_DIR}/icd10pcs_order_2023.txt', 'r') as f:

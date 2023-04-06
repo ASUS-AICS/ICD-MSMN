@@ -49,7 +49,7 @@ class UMLS(object):
             lui = l[3]
             source = l[11]
             code = l[13]
-            if self.version.endswith('icd10'):
+            if self.version.endswith('icd10') or self.version.endswith('cc'):
                 code=code.replace('.','')
             string = l[14]
             keys = ["ICD9CM"] if self.version.endswith('icd9') else ['ICD10PCS', 'ICD10CM']

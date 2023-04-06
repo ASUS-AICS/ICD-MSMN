@@ -1,6 +1,6 @@
 import sys
 import os
-from constant import MIMIC_3_DIR
+from constant import MIMIC_3_DIR, MIMIC_4_ICD10_DIR
 import pandas as pd
 from tqdm import tqdm
 import ujson
@@ -36,9 +36,9 @@ def filter_word_list():
         return word_count_dict
     word_count_dict = {}
     for mode in ['train', 'dev', 'test']:
-        path = os.path.join(MIMIC_3_DIR, mode + "_full.csv")
+        path = os.path.join(MIMIC_4_ICD10_DIR, mode + "_full.csv")
         df = pd.read_csv(path)
-        texts = df['TEXT']
+        texts = df['text']
         for text in tqdm(texts):
             words, _, _ = split(text)
             for word in words:
