@@ -14,23 +14,18 @@ from find_threshold import find_threshold_micro
 if __name__ == "__main__":
     device = "cuda:0"
     model_path = sys.argv[1]
-
-    if model_path.find('mimic3-50') >= 0:
-        version = 'mimic3-50'
-        batch_size = 8
-    else:
-        version = 'mimic3'
-        batch_size = 4
+    version = sys.argv[2]
+    
     print(f"Version: {version}")
 
     model = torch.load(model_path).to(device)
 
-    word_embedding_path = '' # please add it by yourself
+    word_embedding_path = sys.argv[3]
 
     dev_dataset = MimicFullDataset(version, "dev", word_embedding_path, 4000)
-    dev_dataloader = DataLoader(dev_dataset, batch_size=batch_size, collate_fn=my_collate_fn, shuffle=False, num_workers=1)
+    dev_dataloader = DataLoader(dev_dataset, batch_size=4, collate_fn=my_collate_fn, shuffle=False, num_workers=1)
     test_dataset = MimicFullDataset(version, "test", word_embedding_path, 4000)
-    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=my_collate_fn, shuffle=False, num_workers=1)
+    test_dataloader = DataLoader(test_dataset, batch_size=4, collate_fn=my_collate_fn, shuffle=False, num_workers=1)
 
     dev_metric, (dev_yhat, dev_y, dev_yhat_raw), threshold = eval_func(model, dev_dataloader, device, tqdm_bar=True)
     print('Default Threshold on Dev')
