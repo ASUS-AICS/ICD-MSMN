@@ -9,7 +9,7 @@ from tqdm import tqdm
 from constant import MIMIC_2_DIR, MIMIC_3_DIR
 
 
-def all_metrics(yhat, y, k=[5, 8, 15], yhat_raw=None, calc_auc=True):
+def all_metrics(yhat, y, k=[5, 8, 15, 32], yhat_raw=None, calc_auc=True):
     """
         Inputs:
             yhat: binary predictions matrix 
@@ -24,6 +24,9 @@ def all_metrics(yhat, y, k=[5, 8, 15], yhat_raw=None, calc_auc=True):
     #macro
     macro = all_macro(yhat, y)
 
+    # instance
+    samples = all_samples(yhat, y)
+
     #micro
     ymic = y.ravel()
     yhatmic = yhat.ravel()
@@ -31,6 +34,7 @@ def all_metrics(yhat, y, k=[5, 8, 15], yhat_raw=None, calc_auc=True):
 
     metrics = {names[i] + "_macro": macro[i] for i in range(len(macro))}
     metrics.update({names[i] + "_micro": micro[i] for i in range(len(micro))})
+    metrics.update({names[i] + "_samples": samples[i] for i in range(len(samples))})
 
     #AUC and @k
     if yhat_raw is not None and calc_auc:
@@ -48,7 +52,7 @@ def all_metrics(yhat, y, k=[5, 8, 15], yhat_raw=None, calc_auc=True):
 
         roc_auc = auc_metrics(yhat_raw, y, ymic)
         metrics.update(roc_auc)
-
+    print(metrics)
     return metrics
 
 def all_macro(yhat, y):
@@ -56,6 +60,9 @@ def all_macro(yhat, y):
 
 def all_micro(yhatmic, ymic):
     return micro_accuracy(yhatmic, ymic), micro_precision(yhatmic, ymic), micro_recall(yhatmic, ymic), micro_f1(yhatmic, ymic)
+
+def all_samples(yhat, ymic):
+    return inst_accuracy(yhat, ymic), inst_precision(yhat, ymic), inst_recall(yhat, ymic), inst_f1(yhat, ymic)
 
 #########################################################################
 #MACRO METRICS: calculate metric for each label and average across labels
@@ -85,6 +92,10 @@ def macro_f1(yhat, y):
 ###################
 # INSTANCE-AVERAGED
 ###################
+
+def inst_accuracy(yhat, y):
+    num = intersect_size(yhat, y, 1) / (y.sum(axis=1) + 1e-10)
+    return np.mean(num)
 
 def inst_precision(yhat, y):
     num = intersect_size(yhat, y, 1) / yhat.sum(axis=1)
@@ -316,23 +327,25 @@ def intersect_size(yhat, y, axis):
 
 def print_metrics(metrics, suffix=None, output_path=None):
     res = []
-    for key in ['auc_macro', 'auc_micro', 'f1_macro', 'f1_micro', 
+    for key in ['auc_macro', 'auc_micro', 'f1_macro', 'f1_micro', 'f1_samples',
                 'prec_at_5', 'prec_at_8', 'prec_at_15',
                 'rec_at_5', 'rec_at_8', 'rec_at_15']:
+        if key not in metrics:
+            print(f"{key} IS NOT IN METRICS: {list(metrics.keys())}")
         res.append(metrics.get(key, '-'))
     res = [format(r, '.4f') for r in res]
     if output_path is None:
         print('------')
         if suffix is not None:
             print(suffix)
-        print('MACRO-auc, MICRO-auc, MACRO-f1, MICRO-f1, P@5, P@8, P@15, R@5, R@8, R@15')
+        print('MACRO-auc, MICRO-auc, MACRO-f1, MICRO-f1, SAMPLES-f1, P@5, P@8, P@15, R@5, R@8, R@15')
         print(', '.join(res))
     else:
         with open(output_path, "a", encoding="utf-8") as f:
             f.write('------\n')
             if suffix is not None:
                 f.write(f'{suffix}\n')
-            f.write('MACRO-auc, MICRO-auc, MACRO-f1, MICRO-f1, P@5, P@8, P@15, R@5, R@8, R@15\n')
+            f.write('MACRO-auc, MICRO-auc, MACRO-f1, MICRO-f1, SAMPLES-f1, P@5, P@8, P@15, R@5, R@8, R@15\n')
             f.write(', '.join(res) + '\n')
             
     # main icd metric ooutput
