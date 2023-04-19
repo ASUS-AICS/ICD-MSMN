@@ -2,6 +2,7 @@ from main import eval_func
 import sys
 import os
 import torch
+import json
 from torch.utils.data import DataLoader
 from data_util import MimicFullDataset, my_collate_fn
 from evaluation import all_metrics, print_metrics
@@ -21,12 +22,12 @@ if __name__ == "__main__":
     model = torch.load(model_path).to(device)
 
     word_embedding_path = sys.argv[3]
-
-    dev_dataset = MimicFullDataset(version, "dev", word_embedding_path, 4000)
+    length = int(sys.argv[4])
+    dev_dataset = MimicFullDataset(version, "dev", word_embedding_path, length)
     dev_dataloader = DataLoader(dev_dataset, batch_size=4, collate_fn=my_collate_fn, shuffle=False, num_workers=1)
-    test_dataset = MimicFullDataset(version, "test", word_embedding_path, 4000)
+    test_dataset = MimicFullDataset(version, "test", word_embedding_path, length)
     test_dataloader = DataLoader(test_dataset, batch_size=4, collate_fn=my_collate_fn, shuffle=False, num_workers=1)
-
+    
     dev_metric, (dev_yhat, dev_y, dev_yhat_raw), threshold = eval_func(model, dev_dataloader, device, tqdm_bar=True)
     print('Default Threshold on Dev')
     print_metrics(dev_metric, suffix="Dev")
@@ -35,5 +36,11 @@ if __name__ == "__main__":
         print('Threshold:', threshold)
 
     print(f'Adjust Threshold on Test')
-    test_metric, _, _ = eval_func(model, test_dataloader, device, tqdm_bar=True, threshold=threshold)
+    test_metric, (test_yhat, test_y, test_yhat_raw), _ = eval_func(model, test_dataloader, device, tqdm_bar=True, threshold=threshold)
+    
+    np.save(model_path.replace('.pth', '-gts.npy'), test_y)
+    np.save(model_path.replace('.pth', '-preds.npy'), test_yhat_raw)
+    
+    with open(model_path.replace('.pth', '-label-dict.json'), 'w+') as f:
+        json.dump(f, [str(v) for _, v in test_dataset.ind2c.items()])
     print_metrics(test_metric, suffix='Test')
