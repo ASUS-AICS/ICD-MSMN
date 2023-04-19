@@ -27,7 +27,6 @@ if __name__ == "__main__":
     dev_dataloader = DataLoader(dev_dataset, batch_size=4, collate_fn=my_collate_fn, shuffle=False, num_workers=1)
     test_dataset = MimicFullDataset(version, "test", word_embedding_path, length)
     test_dataloader = DataLoader(test_dataset, batch_size=4, collate_fn=my_collate_fn, shuffle=False, num_workers=1)
-    
     dev_metric, (dev_yhat, dev_y, dev_yhat_raw), threshold = eval_func(model, dev_dataloader, device, tqdm_bar=True)
     print('Default Threshold on Dev')
     print_metrics(dev_metric, suffix="Dev")
@@ -42,5 +41,6 @@ if __name__ == "__main__":
     np.save(model_path.replace('.pth', '-preds.npy'), test_yhat_raw)
     
     with open(model_path.replace('.pth', '-label-dict.json'), 'w+') as f:
-        json.dump(f, [str(v) for _, v in test_dataset.ind2c.items()])
+        json.dump([str(v) for _, v in test_dataset.ind2c.items()], f)
+
     print_metrics(test_metric, suffix='Test')
