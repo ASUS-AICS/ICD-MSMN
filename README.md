@@ -8,7 +8,7 @@ At least 32GB GPU are needed for the full settings.
 Best to use the environment from the LAAT baseline.
 
 # Dataset
-Follow the instructions in the dataset repository to obtain the dataset.
+Follow the instructions in the [dataset repository](https://github.com/thomasnguyen92/MIMIC-IV-ICD-data-processing) to obtain the dataset.
 
 
 # Training
